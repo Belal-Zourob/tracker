@@ -116,7 +116,8 @@ const I18N = {
     username: "Username",
     password: "Password",
     login: "Login",
-    forgotPassword: "Forgot password?",
+    forgotPassword: "Wachtwoord vergeten?",
+    forgotPasswordHint: "Nog niet beschikbaar",
     logout: "Logout",
     prevWeek: "← Vorige",
     nextWeek: "Volgende →",
@@ -186,6 +187,7 @@ const I18N = {
     password: "Password",
     login: "Login",
     forgotPassword: "Forgot password?",
+    forgotPasswordHint: "Not available yet",
     logout: "Logout",
     prevWeek: "← Previous",
     nextWeek: "Next →",
@@ -538,6 +540,8 @@ function applyStaticTexts() {
   loginPassLabelEl.textContent = t("password");
   loginBtn.textContent = t("login");
   forgotPassBtn.textContent = t("forgotPassword");
+  forgotPassBtn.dataset.tip = t("forgotPasswordHint");
+  forgotPassBtn.setAttribute("aria-label", t("forgotPassword"));
   logoutBtn.textContent = t("logout");
 
   prevWeekBtn.textContent = t("prevWeek");
