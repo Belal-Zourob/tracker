@@ -2,24 +2,196 @@ const path = require("path");
 const express = require("express");
 const session = require("express-session");
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 const db = require("./db");
 
 const app = express();
+const isProd = process.env.NODE_ENV === "production";
+const sessionSecret = process.env.SESSION_SECRET;
+const sessionCookieName = isProd ? "__Host-sid" : "sid";
+
+if (isProd && (!sessionSecret || sessionSecret.length < 32)) {
+  throw new Error("SESSION_SECRET is required in production and must be at least 32 characters.");
+}
+
+const effectiveSessionSecret = sessionSecret || crypto.randomBytes(48).toString("hex");
+if (!sessionSecret) {
+  console.warn("SESSION_SECRET is not set. Using ephemeral secret for this process.");
+}
+
+app.disable("x-powered-by");
+
+class SqliteSessionStore extends session.Store {
+  constructor(database) {
+    super();
+    this.db = database;
+    this.getStmt = this.db.prepare(
+      "SELECT sess FROM sessions WHERE sid = ? AND expires_at > ?"
+    );
+    this.setStmt = this.db.prepare(
+      "INSERT INTO sessions (sid, sess, expires_at) VALUES (?, ?, ?) " +
+      "ON CONFLICT(sid) DO UPDATE SET sess = excluded.sess, expires_at = excluded.expires_at"
+    );
+    this.destroyStmt = this.db.prepare("DELETE FROM sessions WHERE sid = ?");
+    this.touchStmt = this.db.prepare("UPDATE sessions SET expires_at = ? WHERE sid = ?");
+    this.clearExpiredStmt = this.db.prepare("DELETE FROM sessions WHERE expires_at <= ?");
+  }
+
+  get(sid, callback) {
+    try {
+      const row = this.getStmt.get(sid, Date.now());
+      if (!row) return callback(null, null);
+      return callback(null, JSON.parse(row.sess));
+    } catch (err) {
+      return callback(err);
+    }
+  }
+
+  set(sid, sess, callback = () => {}) {
+    try {
+      const expiresAt = this.resolveExpiresAt(sess);
+      this.setStmt.run(sid, JSON.stringify(sess), expiresAt);
+      callback(null);
+    } catch (err) {
+      callback(err);
+    }
+  }
+
+  destroy(sid, callback = () => {}) {
+    try {
+      this.destroyStmt.run(sid);
+      callback(null);
+    } catch (err) {
+      callback(err);
+    }
+  }
+
+  touch(sid, sess, callback = () => {}) {
+    try {
+      const expiresAt = this.resolveExpiresAt(sess);
+      this.touchStmt.run(expiresAt, sid);
+      callback(null);
+    } catch (err) {
+      callback(err);
+    }
+  }
+
+  clearExpired() {
+    this.clearExpiredStmt.run(Date.now());
+  }
+
+  resolveExpiresAt(sess) {
+    if (sess && sess.cookie && sess.cookie.expires) {
+      const ts = new Date(sess.cookie.expires).getTime();
+      if (Number.isFinite(ts)) return ts;
+    }
+    if (sess && sess.cookie && Number.isFinite(sess.cookie.maxAge)) {
+      return Date.now() + Number(sess.cookie.maxAge);
+    }
+    return Date.now() + 1000 * 60 * 60 * 24 * 14;
+  }
+}
+
+const sessionStore = new SqliteSessionStore(db);
+setInterval(() => sessionStore.clearExpired(), 1000 * 60 * 15).unref();
+
+const LOGIN_WINDOW_MS = 1000 * 60 * 15;
+const LOGIN_MAX_ATTEMPTS = 10;
+const loginAttempts = new Map();
+
+function loginAttemptKey(req, username) {
+  return `${req.ip}|${username}`;
+}
+
+function isLoginLimited(key) {
+  const entry = loginAttempts.get(key);
+  if (!entry) return false;
+  if (Date.now() > entry.resetAt) {
+    loginAttempts.delete(key);
+    return false;
+  }
+  return entry.count >= LOGIN_MAX_ATTEMPTS;
+}
+
+function registerFailedLogin(key) {
+  const now = Date.now();
+  const existing = loginAttempts.get(key);
+  if (!existing || now > existing.resetAt) {
+    loginAttempts.set(key, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
+    return;
+  }
+  existing.count += 1;
+}
+
+function clearLoginAttempts(key) {
+  loginAttempts.delete(key);
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of loginAttempts.entries()) {
+    if (value.resetAt <= now) loginAttempts.delete(key);
+  }
+}, 1000 * 60 * 5).unref();
+
+function verifySameOrigin(req, res, next) {
+  if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) return next();
+  const origin = req.get("origin");
+  if (!origin) return next(); // non-browser clients
+
+  try {
+    const requestOrigin = new URL(origin);
+    if (requestOrigin.host !== req.get("host")) {
+      return res.status(403).json({ error: "bad_origin" });
+    }
+  } catch (err) {
+    return res.status(403).json({ error: "bad_origin" });
+  }
+  return next();
+}
+
+function regenerateSession(req) {
+  return new Promise((resolve, reject) => {
+    req.session.regenerate((err) => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
+}
+
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+  );
+  if (isProd) {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+  next();
+});
 
 app.use(express.json({ limit: "50kb" }));
 app.use(express.static(path.join(__dirname, "public")));
+app.use("/api", verifySameOrigin);
 
 app.set("trust proxy", 1);
 app.use(
   session({
-    name: "sid",
-    secret: process.env.SESSION_SECRET || "dev_secret_change_me",
+    store: sessionStore,
+    name: sessionCookieName,
+    secret: effectiveSessionSecret,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
       sameSite: "lax",
-      secure: false, // zet op true achter HTTPS
+      secure: isProd,
       maxAge: 1000 * 60 * 60 * 24 * 14, // 14 dagen
     },
   })
@@ -42,11 +214,18 @@ app.post("/api/login", async (req, res) => {
   try {
     const username = normalizeUsername(req.body.username);
     const password = String(req.body.password || "");
+    const attemptKey = loginAttemptKey(req, username);
+
+    if (isLoginLimited(attemptKey)) {
+      return res.status(429).json({ error: "too_many_attempts" });
+    }
 
     if (username.length < 3 || username.length > 32) {
+      registerFailedLogin(attemptKey);
       return res.status(400).json({ error: "username_length" });
     }
     if (password.length < 6 || password.length > 128) {
+      registerFailedLogin(attemptKey);
       return res.status(400).json({ error: "password_length" });
     }
 
@@ -60,16 +239,23 @@ app.post("/api/login", async (req, res) => {
       // Default vak
       db.prepare("INSERT OR IGNORE INTO subjects (user_id, name) VALUES (?, ?)").run(userId, "Algemeen");
 
+      await regenerateSession(req);
       req.session.userId = userId;
       req.session.username = username;
+      clearLoginAttempts(attemptKey);
       return res.json({ ok: true, created: true, username });
     }
 
     const ok = await bcrypt.compare(password, row.password_hash);
-    if (!ok) return res.status(401).json({ error: "invalid_credentials" });
+    if (!ok) {
+      registerFailedLogin(attemptKey);
+      return res.status(401).json({ error: "invalid_credentials" });
+    }
 
+    await regenerateSession(req);
     req.session.userId = row.id;
     req.session.username = username;
+    clearLoginAttempts(attemptKey);
     return res.json({ ok: true, created: false, username });
   } catch (e) {
     return res.status(500).json({ error: "server_error" });
@@ -77,7 +263,10 @@ app.post("/api/login", async (req, res) => {
 });
 
 app.post("/api/logout", (req, res) => {
-  req.session.destroy(() => res.json({ ok: true }));
+  req.session.destroy(() => {
+    res.clearCookie(sessionCookieName);
+    res.json({ ok: true });
+  });
 });
 
 app.get("/api/me", (req, res) => {
