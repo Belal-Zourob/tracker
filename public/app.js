@@ -755,6 +755,7 @@ function sumHours(list) {
 // ---- Render ----
 function renderAuthUI(authed, username) {
   if (!authed) {
+    document.body.classList.add("auth-view");
     closeCustomSelects();
     stopLiveTicker();
     liveSession.running = false;
@@ -770,6 +771,7 @@ function renderAuthUI(authed, username) {
     logoutBtn.classList.add("hidden");
     return;
   }
+  document.body.classList.remove("auth-view");
   loginCard.classList.add("hidden");
   appCard.classList.remove("hidden");
   meEl.textContent = username;

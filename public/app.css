@@ -38,6 +38,27 @@ body{
   margin:0;
 }
 
+body.auth-view .shell{
+  min-height: calc(100vh - 140px);
+  display:grid;
+  place-items:center;
+}
+
+body.auth-view #loginCard{
+  width:min(460px, 92vw);
+  aspect-ratio:1 / 1;
+  max-height:78vh;
+  overflow:auto;
+  padding:22px;
+}
+
+@media (max-width:720px){
+  body.auth-view #loginCard{
+    aspect-ratio:auto;
+    max-height:none;
+  }
+}
+
 
 /* Header */
 .top{
