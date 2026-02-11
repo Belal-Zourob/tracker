@@ -10,9 +10,13 @@
   <div class="page">
     <header class="top">
       <div>
-        <h1>Working Hours</h1>
+        <h1 id="appTitle">Working Hours</h1>
       </div>
       <div class="topRight">
+        <div id="langSwitch" class="langSwitch" role="group" aria-label="Language">
+          <button id="langNl" type="button" class="langBtn">NL</button>
+          <button id="langEn" type="button" class="langBtn">EN</button>
+        </div>
         <div id="me" class="pill hidden"></div>
         <button id="logoutBtn" class="btn ghost hidden">Logout</button>
       </div>
@@ -21,15 +25,15 @@
     <main class="shell">
       <!-- LOGIN -->
       <section id="loginCard" class="card">
-        <h2>Login</h2>
-        <p class="muted">Bestaat username niet, dan wordt die aangemaakt.</p>
+        <h2 id="loginTitle">Login</h2>
+        <p id="loginHint" class="muted">Bestaat username niet, dan wordt die aangemaakt.</p>
         <div class="grid2">
           <div class="field">
-            <label>Username</label>
+            <label id="loginUserLabel">Username</label>
             <input id="loginUser" autocomplete="username" />
           </div>
           <div class="field">
-            <label>Password</label>
+            <label id="loginPassLabel">Password</label>
             <input id="loginPass" type="password" autocomplete="current-password" />
           </div>
         </div>
@@ -50,21 +54,21 @@
 
         <div class="layout">
           <div class="card inner">
-            <h2>Invoer</h2>
+            <h2 id="entryTitle">Invoer</h2>
             <div class="grid2">
               <div class="field">
-                <label>Dag</label>
+                <label id="dayLabel">Dag</label>
                 <select id="daySelect"></select>
               </div>
               <div class="field">
-                <label>Vak</label>
+                <label id="subjectLabel">Vak</label>
                 <select id="subjectSelect"></select>
               </div>
             </div>
 
             <div class="grid2">
               <div class="field">
-                <label>Type</label>
+                <label id="typeLabel">Type</label>
                 <select id="typeSelect">
                   <option value="taak">taak</option>
                   <option value="study">study</option>
@@ -72,13 +76,13 @@
                 </select>
               </div>
               <div class="field">
-                <label>Uren</label>
+                <label id="hoursLabel">Uren</label>
                 <input id="hoursInput" type="number" min="0" step="0.25" placeholder="bv. 1.5" />
               </div>
             </div>
 
             <div class="field">
-              <label>Notitie</label>
+              <label id="noteLabel">Notitie</label>
               <textarea id="noteInput" placeholder="optioneel"></textarea>
             </div>
 
@@ -89,10 +93,10 @@
 
             <div class="hr"></div>
 
-            <h2>Vakken</h2>
+            <h2 id="subjectsTitle">Vakken</h2>
             <div class="row">
                 <div class="field grow">
-                    <label>Nieuw vak</label>
+                    <label id="newSubjectLabel">Nieuw vak</label>
                     <input id="newSubject" placeholder="bv. Wiskunde" />
                 </div>
                 <div class="field">
@@ -104,18 +108,18 @@
 
             <div class="kpis">
               <div class="kpi">
-                <div class="muted">Week totaal</div>
+                <div id="weekTotalLabel" class="muted">Week totaal</div>
                 <div id="weekTotal" class="kpiVal">0</div>
               </div>
               <div class="kpi">
-                <div class="muted">Dagtotaal</div>
+                <div id="dayTotalLabel" class="muted">Dagtotaal</div>
                 <div id="dayTotal" class="kpiVal">0</div>
               </div>
             </div>
           </div>
 
           <div class="card inner">
-            <h2>Week</h2>
+            <h2 id="weekTitle">Week</h2>
             <div id="days" class="days"></div>
           </div>
         </div>

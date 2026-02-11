@@ -9,6 +9,8 @@ const loginErr = document.getElementById("loginErr");
 
 const meEl = document.getElementById("me");
 const logoutBtn = document.getElementById("logoutBtn");
+const langNlBtn = document.getElementById("langNl");
+const langEnBtn = document.getElementById("langEn");
 
 const prevWeekBtn = document.getElementById("prevWeek");
 const nextWeekBtn = document.getElementById("nextWeek");
@@ -30,6 +32,23 @@ const subjectList = document.getElementById("subjectList");
 const daysEl = document.getElementById("days");
 const weekTotalEl = document.getElementById("weekTotal");
 const dayTotalEl = document.getElementById("dayTotal");
+
+const appTitleEl = document.getElementById("appTitle");
+const loginTitleEl = document.getElementById("loginTitle");
+const loginHintEl = document.getElementById("loginHint");
+const loginUserLabelEl = document.getElementById("loginUserLabel");
+const loginPassLabelEl = document.getElementById("loginPassLabel");
+const entryTitleEl = document.getElementById("entryTitle");
+const dayLabelEl = document.getElementById("dayLabel");
+const subjectLabelEl = document.getElementById("subjectLabel");
+const typeLabelEl = document.getElementById("typeLabel");
+const hoursLabelEl = document.getElementById("hoursLabel");
+const noteLabelEl = document.getElementById("noteLabel");
+const subjectsTitleEl = document.getElementById("subjectsTitle");
+const newSubjectLabelEl = document.getElementById("newSubjectLabel");
+const weekTotalLabelEl = document.getElementById("weekTotalLabel");
+const dayTotalLabelEl = document.getElementById("dayTotalLabel");
+const weekTitleEl = document.getElementById("weekTitle");
 
 // ---- Date helpers (ISO week monday start) ----
 const pad2 = (n) => String(n).padStart(2, "0");
@@ -56,7 +75,7 @@ function formatWeekLabel(ws) {
   return `${pad2(ws.getDate())}/${pad2(ws.getMonth() + 1)}/${ws.getFullYear()} – ${pad2(we.getDate())}/${pad2(we.getMonth() + 1)}/${we.getFullYear()}`;
 }
 function formatDayLabel(d, idx) {
-  const short = ["ma", "di", "wo", "do", "vr", "za", "zo"][idx];
+  const short = t("dayShort")[idx] || "";
   return `${short} ${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}`;
 }
 
@@ -72,10 +91,311 @@ async function api(path, opts) {
   return data;
 }
 
+const I18N = {
+  nl: {
+    appTitle: "Working Hours",
+    loginTitle: "Login",
+    loginHint: "Bestaat username niet, dan wordt die aangemaakt.",
+    username: "Username",
+    password: "Password",
+    login: "Login",
+    logout: "Logout",
+    prevWeek: "← Vorige",
+    nextWeek: "Volgende →",
+    today: "Vandaag",
+    entryTitle: "Invoer",
+    day: "Dag",
+    subject: "Vak",
+    type: "Type",
+    hours: "Uren",
+    note: "Notitie",
+    hoursPlaceholder: "bv. 1.5",
+    notePlaceholder: "optioneel",
+    addEntry: "Toevoegen",
+    clearWeek: "Week leegmaken",
+    subjectsTitle: "Vakken",
+    newSubject: "Nieuw vak",
+    newSubjectPlaceholder: "bv. Wiskunde",
+    addSubject: "Toevoegen",
+    weekTotal: "Week totaal",
+    dayTotal: "Dagtotaal",
+    weekTitle: "Week",
+    choose: "Kies...",
+    noEntries: "Geen entries",
+    deleteSubject: "Verwijder",
+    editDay: "Bewerk dag",
+    closeDay: "Sluit dag",
+    deleteRecord: "Verwijder record",
+    unitShort: "u",
+    unitLong: "uur",
+    dayShort: ["ma", "di", "wo", "do", "vr", "za", "zo"],
+    dayNames: ["Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag", "Zondag"],
+    typeLabels: {
+      taak: "taak",
+      study: "study",
+      lecture: "lecture",
+    },
+  },
+  en: {
+    appTitle: "Working Hours",
+    loginTitle: "Login",
+    loginHint: "If the username does not exist, it will be created.",
+    username: "Username",
+    password: "Password",
+    login: "Login",
+    logout: "Logout",
+    prevWeek: "← Previous",
+    nextWeek: "Next →",
+    today: "Today",
+    entryTitle: "Entry",
+    day: "Day",
+    subject: "Subject",
+    type: "Type",
+    hours: "Hours",
+    note: "Note",
+    hoursPlaceholder: "e.g. 1.5",
+    notePlaceholder: "optional",
+    addEntry: "Add",
+    clearWeek: "Clear week",
+    subjectsTitle: "Subjects",
+    newSubject: "New subject",
+    newSubjectPlaceholder: "e.g. Math",
+    addSubject: "Add",
+    weekTotal: "Week total",
+    dayTotal: "Day total",
+    weekTitle: "Week",
+    choose: "Choose...",
+    noEntries: "No entries",
+    deleteSubject: "Delete",
+    editDay: "Edit day",
+    closeDay: "Close day",
+    deleteRecord: "Delete record",
+    unitShort: "h",
+    unitLong: "hours",
+    dayShort: ["mo", "tu", "we", "th", "fr", "sa", "su"],
+    dayNames: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+    typeLabels: {
+      taak: "task",
+      study: "study",
+      lecture: "lecture",
+    },
+  },
+};
+
 // ---- State ----
 let currentWeekStart = startOfISOWeek(new Date());
 let subjects = [];
 let weekEntries = []; // entries in current week
+let expandedDayISO = null;
+let prevExpandedDayISO = null;
+const LANG_KEY = "tracker_lang";
+let currentLang = (localStorage.getItem(LANG_KEY) || "nl").toLowerCase() === "en" ? "en" : "nl";
+const managedSelects = [daySelect, subjectSelect, typeSelect];
+
+function t(key) {
+  return I18N[currentLang][key];
+}
+
+function getTypeLabel(type) {
+  return t("typeLabels")[type] || type;
+}
+
+function applyStaticTexts() {
+  document.documentElement.lang = currentLang;
+
+  appTitleEl.textContent = t("appTitle");
+  loginTitleEl.textContent = t("loginTitle");
+  loginHintEl.textContent = t("loginHint");
+  loginUserLabelEl.textContent = t("username");
+  loginPassLabelEl.textContent = t("password");
+  loginBtn.textContent = t("login");
+  logoutBtn.textContent = t("logout");
+
+  prevWeekBtn.textContent = t("prevWeek");
+  nextWeekBtn.textContent = t("nextWeek");
+  todayBtn.textContent = t("today");
+
+  entryTitleEl.textContent = t("entryTitle");
+  dayLabelEl.textContent = t("day");
+  subjectLabelEl.textContent = t("subject");
+  typeLabelEl.textContent = t("type");
+  hoursLabelEl.textContent = t("hours");
+  noteLabelEl.textContent = t("note");
+  hoursInput.placeholder = t("hoursPlaceholder");
+  noteInput.placeholder = t("notePlaceholder");
+  addEntryBtn.textContent = t("addEntry");
+  clearWeekBtn.textContent = t("clearWeek");
+
+  subjectsTitleEl.textContent = t("subjectsTitle");
+  newSubjectLabelEl.textContent = t("newSubject");
+  newSubject.placeholder = t("newSubjectPlaceholder");
+  addSubjectBtn.textContent = t("addSubject");
+
+  weekTotalLabelEl.textContent = t("weekTotal");
+  dayTotalLabelEl.textContent = t("dayTotal");
+  weekTitleEl.textContent = t("weekTitle");
+
+  Array.from(typeSelect.options).forEach((opt) => {
+    opt.textContent = getTypeLabel(opt.value);
+  });
+
+  const nlActive = currentLang === "nl";
+  langNlBtn.classList.toggle("active", nlActive);
+  langEnBtn.classList.toggle("active", !nlActive);
+  langNlBtn.setAttribute("aria-pressed", String(nlActive));
+  langEnBtn.setAttribute("aria-pressed", String(!nlActive));
+}
+
+function setLanguage(lang, rerender = true) {
+  const normalized = String(lang).toLowerCase() === "en" ? "en" : "nl";
+  if (currentLang === normalized && rerender) {
+    applyStaticTexts();
+    return;
+  }
+  currentLang = normalized;
+  localStorage.setItem(LANG_KEY, currentLang);
+  applyStaticTexts();
+  if (rerender && !appCard.classList.contains("hidden")) renderAll();
+}
+
+// ---- Glass dropdowns ----
+function customHostFor(select) {
+  if (!select || !select.parentElement) return null;
+  return select.parentElement.querySelector(`.glassSelect[data-for="${select.id}"]`);
+}
+
+function closeCustomSelects(except = null) {
+  document.querySelectorAll(".glassSelect.open").forEach((host) => {
+    if (host !== except) host.classList.remove("open");
+  });
+}
+
+function syncCustomSelect(select) {
+  const host = customHostFor(select);
+  if (!host) return;
+
+  const valueEl = host.querySelector(".glassSelectValue");
+  const trigger = host.querySelector(".glassSelectTrigger");
+  const selected = select.selectedOptions?.[0] || select.options[0];
+
+  valueEl.textContent = selected ? selected.textContent : t("choose");
+  trigger.disabled = select.disabled || select.options.length === 0;
+
+  host.querySelectorAll(".glassSelectItem").forEach((item) => {
+    item.classList.toggle("selected", item.dataset.value === select.value);
+  });
+}
+
+function renderCustomSelect(select) {
+  if (!select || !select.id) return;
+  select.classList.add("nativeSelect");
+
+  let host = customHostFor(select);
+  if (!host) {
+    host = document.createElement("div");
+    host.className = "glassSelect";
+    host.dataset.for = select.id;
+
+    const trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "glassSelectTrigger";
+
+    const value = document.createElement("span");
+    value.className = "glassSelectValue";
+
+    const arrow = document.createElement("span");
+    arrow.className = "glassSelectArrow";
+    arrow.setAttribute("aria-hidden", "true");
+
+    trigger.appendChild(value);
+    trigger.appendChild(arrow);
+
+    const menu = document.createElement("div");
+    menu.className = "glassSelectMenu";
+
+    host.appendChild(trigger);
+    host.appendChild(menu);
+    select.insertAdjacentElement("afterend", host);
+  }
+
+  const menu = host.querySelector(".glassSelectMenu");
+  menu.innerHTML = "";
+
+  for (const option of Array.from(select.options)) {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "glassSelectItem";
+    item.dataset.value = option.value;
+    item.textContent = option.textContent;
+    item.disabled = !!option.disabled;
+
+    if (option.disabled) item.classList.add("disabled");
+    if (option.value === select.value) item.classList.add("selected");
+
+    item.onclick = () => {
+      if (option.disabled) return;
+      select.value = option.value;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      syncCustomSelect(select);
+      closeCustomSelects();
+    };
+
+    menu.appendChild(item);
+  }
+
+  if (!host.dataset.bound) {
+    const trigger = host.querySelector(".glassSelectTrigger");
+
+    trigger.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const opening = !host.classList.contains("open");
+      closeCustomSelects(host);
+      host.classList.toggle("open", opening);
+    });
+
+    trigger.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " " || ev.key === "ArrowDown") {
+        ev.preventDefault();
+        closeCustomSelects(host);
+        host.classList.add("open");
+      } else if (ev.key === "Escape") {
+        host.classList.remove("open");
+      }
+    });
+
+    host.dataset.bound = "1";
+  }
+
+  if (!select.dataset.customBound) {
+    select.addEventListener("change", () => syncCustomSelect(select));
+    select.dataset.customBound = "1";
+  }
+
+  syncCustomSelect(select);
+}
+
+function renderCustomSelects() {
+  managedSelects.forEach((select) => renderCustomSelect(select));
+}
+
+document.addEventListener("click", (ev) => {
+  if (ev.target.closest(".glassSelect")) return;
+  closeCustomSelects();
+});
+
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape") closeCustomSelects();
+});
+
+function compactSubjectLabel(subject) {
+  const words = String(subject || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.length === 0) return "";
+  if (words.length === 1) return words[0].slice(0, 3).toUpperCase();
+  return words.map((w) => w[0].toUpperCase()).join("");
+}
 
 function entriesByDay() {
   const map = new Map();
@@ -92,6 +412,7 @@ function sumHours(list) {
 // ---- Render ----
 function renderAuthUI(authed, username) {
   if (!authed) {
+    closeCustomSelects();
     loginCard.classList.remove("hidden");
     appCard.classList.add("hidden");
     meEl.classList.add("hidden");
@@ -124,7 +445,7 @@ function renderSubjects() {
 
     const del = document.createElement("button");
     del.className = "btn danger";
-    del.textContent = "Verwijder";
+    del.textContent = t("deleteSubject");
     del.disabled = subjects.length === 1;
     del.onclick = async () => {
       await api(`/api/subjects/${encodeURIComponent(s)}`, { method: "DELETE" });
@@ -139,6 +460,7 @@ function renderSubjects() {
 }
 
 function renderDaySelect() {
+  const previousValue = daySelect.value;
   daySelect.innerHTML = "";
   const dates = getWeekDates(currentWeekStart);
   for (let i = 0; i < 7; i++) {
@@ -148,6 +470,23 @@ function renderDaySelect() {
     opt.textContent = formatDayLabel(d, i);
     daySelect.appendChild(opt);
   }
+
+  const hasPrevious = Array.from(daySelect.options).some((opt) => opt.value === previousValue);
+  if (hasPrevious) {
+    daySelect.value = previousValue;
+    return;
+  }
+
+  const todayISO = toISODate(new Date());
+  const hasToday = Array.from(daySelect.options).some((opt) => opt.value === todayISO);
+  if (hasToday) {
+    daySelect.value = todayISO;
+    return;
+  }
+
+  if (daySelect.options.length > 0) {
+    daySelect.selectedIndex = 0;
+  }
 }
 
 function renderWeek() {
@@ -156,15 +495,23 @@ function renderWeek() {
 
   const map = entriesByDay();
   const dates = getWeekDates(currentWeekStart);
-  const dayNames = ["Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag", "Zondag"];
+  const weekISO = dates.map((d) => toISODate(d));
+  if (expandedDayISO && !weekISO.includes(expandedDayISO)) expandedDayISO = null;
+  daysEl.classList.toggle("hasExpanded", !!expandedDayISO);
+  const selectedISO = daySelect.value;
+  const dayNames = t("dayNames");
 
   for (let i = 0; i < 7; i++) {
     const d = dates[i];
     const iso = toISODate(d);
+    const expanded = expandedDayISO === iso;
     const list = (map.get(iso) || []).slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
 
     const day = document.createElement("div");
-    day.className = "day";
+    day.className = expanded ? "day expanded" : "day";
+    if (iso === selectedISO) day.classList.add("selected");
+    if (expanded && prevExpandedDayISO !== expandedDayISO) day.classList.add("expandAnim");
+    if (!expanded && iso === prevExpandedDayISO && prevExpandedDayISO !== expandedDayISO) day.classList.add("collapseAnim");
 
     const head = document.createElement("div");
     head.className = "dayHead";
@@ -181,32 +528,52 @@ function renderWeek() {
 
     const total = document.createElement("div");
     total.className = "total";
-    total.textContent = `${sumHours(list)} u`;
+    total.textContent = `${sumHours(list)} ${t("unitShort")}`;
+
+    const actions = document.createElement("div");
+    actions.className = "dayActions";
+    actions.appendChild(total);
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "dayToggle iconBtn";
+    toggle.title = expanded ? t("closeDay") : t("editDay");
+    toggle.setAttribute("aria-label", expanded ? t("closeDay") : t("editDay"));
+    toggle.innerHTML = expanded
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3zM14.5 6.5l3 3"/></svg>';
+    toggle.onclick = () => {
+      expandedDayISO = expanded ? null : iso;
+      daySelect.value = iso;
+      daySelect.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    actions.appendChild(toggle);
 
     head.appendChild(left);
-    head.appendChild(total);
+    head.appendChild(actions);
     day.appendChild(head);
 
     if (list.length === 0) {
       const empty = document.createElement("div");
       empty.className = "muted";
-      empty.textContent = "Geen entries";
+      empty.textContent = t("noEntries");
       day.appendChild(empty);
     } else {
       for (const e of list) {
         const it = document.createElement("div");
-        it.className = "item";
+        it.className = expanded ? "item expanded" : "item compact";
 
         const l = document.createElement("div");
-        l.style.minWidth = "0";
+        l.className = "itemLeft";
 
         const tag = document.createElement("div");
         tag.className = `tag ${e.type}`;
-        tag.textContent = `${e.subject} • ${e.type}`;
+        tag.textContent = expanded ? `${e.subject} • ${getTypeLabel(e.type)}` : compactSubjectLabel(e.subject);
+        tag.title = `${e.subject} • ${getTypeLabel(e.type)}`;
 
         l.appendChild(tag);
 
-        if (e.note) {
+        if (expanded && e.note) {
           const note = document.createElement("div");
           note.className = "note";
           note.textContent = e.note;
@@ -214,45 +581,42 @@ function renderWeek() {
         }
 
         const r = document.createElement("div");
-        r.style.display = "flex";
-        r.style.flexDirection = "column";
-        r.style.gap = "8px";
-        r.style.alignItems = "flex-end";
+        r.className = expanded ? "itemRight expanded" : "itemRight";
 
         const hrs = document.createElement("div");
         hrs.className = "hours";
-        hrs.textContent = `${e.hours} u`;
-
-        const del = document.createElement("button");
-        del.className = "btn danger";
-        del.textContent = "X";
-        del.onclick = async () => {
-          await api(`/api/entries/${e.id}`, { method: "DELETE" });
-          await loadWeek();
-          renderAll();
-        };
-
+        hrs.textContent = `${e.hours} ${t("unitShort")}`;
+        hrs.title = `${e.hours} ${t("unitLong")}`;
         r.appendChild(hrs);
-        r.appendChild(del);
+
+        if (expanded) {
+          const del = document.createElement("button");
+          del.className = "btn danger iconBtn";
+          del.title = t("deleteRecord");
+          del.setAttribute("aria-label", t("deleteRecord"));
+          del.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6m4 4v7m6-7v7"/></svg>';
+          del.onclick = async () => {
+            await api(`/api/entries/${e.id}`, { method: "DELETE" });
+            await loadWeek();
+            renderAll();
+          };
+          r.appendChild(del);
+        }
 
         it.appendChild(l);
         it.appendChild(r);
         day.appendChild(it);
       }
     }
-
-    const quick = document.createElement("button");
-    quick.className = "btn ghost";
-    quick.textContent = "Edit";
-    quick.onclick = () => {
+    day.onclick = (ev) => {
+      if (ev.target.closest("button")) return;
       daySelect.value = iso;
-      renderTotals();
-      hoursInput.focus();
+      daySelect.dispatchEvent(new Event("change", { bubbles: true }));
     };
-
-    day.appendChild(quick);
     daysEl.appendChild(day);
   }
+
+  prevExpandedDayISO = expandedDayISO;
 }
 
 function renderTotals() {
@@ -268,6 +632,7 @@ function renderTotals() {
 function renderAll() {
   renderSubjects();
   renderDaySelect();
+  renderCustomSelects();
   renderWeek();
   renderTotals();
 }
@@ -291,6 +656,9 @@ async function loadWeek() {
 }
 
 // ---- Handlers ----
+langNlBtn.onclick = () => setLanguage("nl");
+langEnBtn.onclick = () => setLanguage("en");
+
 loginBtn.onclick = async () => {
   loginErr.textContent = "";
   try {
@@ -328,8 +696,16 @@ todayBtn.onclick = async () => {
   currentWeekStart = startOfISOWeek(new Date());
   await loadWeek();
   renderAll();
+  const todayISO = toISODate(new Date());
+  if (Array.from(daySelect.options).some((opt) => opt.value === todayISO)) {
+    daySelect.value = todayISO;
+    daySelect.dispatchEvent(new Event("change", { bubbles: true }));
+  }
 };
-daySelect.onchange = () => renderTotals();
+daySelect.onchange = () => {
+  renderTotals();
+  renderWeek();
+};
 
 addSubjectBtn.onclick = async () => {
   const name = String(newSubject.value || "").trim();
@@ -369,6 +745,7 @@ clearWeekBtn.onclick = async () => {
 
 // ---- Init ----
 (async function init() {
+  setLanguage(currentLang, false);
   const me = await loadMe();
   if (me.authed) {
     await loadSubjects();
