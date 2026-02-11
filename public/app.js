@@ -1114,7 +1114,8 @@ liveStopBtn.onclick = async () => {
 langNlBtn.onclick = () => setLanguage("nl");
 langEnBtn.onclick = () => setLanguage("en");
 
-loginBtn.onclick = async () => {
+async function doLogin() {
+  if (loginCard.classList.contains("hidden")) return;
   loginErr.textContent = "";
   try {
     const username = loginUser.value;
@@ -1130,7 +1131,20 @@ loginBtn.onclick = async () => {
   } catch (e) {
     loginErr.textContent = e?.error || "login_failed";
   }
+}
+
+loginBtn.onclick = async () => {
+  await doLogin();
 };
+
+function onLoginEnter(ev) {
+  if (ev.key !== "Enter") return;
+  ev.preventDefault();
+  void doLogin();
+}
+
+loginUser.addEventListener("keydown", onLoginEnter);
+loginPass.addEventListener("keydown", onLoginEnter);
 
 logoutBtn.onclick = async () => {
   await api("/api/logout", { method: "POST" });
