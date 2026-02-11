@@ -21,8 +21,29 @@ body{
     radial-gradient(1200px 600px at 50% 0%, rgba(110,168,254,.16), transparent 60%),
     radial-gradient(900px 500px at 0% 40%, rgba(45,212,191,.12), transparent 55%),
     var(--bg);
+  background-size: 115% 115%, 120% 120%, auto;
+  background-position: 50% 0%, 0% 40%, 0 0;
+  animation: bgDrift 120s ease-in-out infinite alternate;
   color:var(--text);
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+}
+
+@keyframes bgDrift{
+  0%{
+    background-position: 50% 0%, 0% 40%, 0 0;
+  }
+  50%{
+    background-position: 51% 1%, 1% 41%, 0 0;
+  }
+  100%{
+    background-position: 49% -1%, -1% 39%, 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce){
+  body{
+    animation:none;
+  }
 }
 
 .page{
