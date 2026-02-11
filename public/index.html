@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Working Hours</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="top">
+      <div>
+        <h1>Working Hours</h1>
+      </div>
+      <div class="topRight">
+        <div id="me" class="pill hidden"></div>
+        <button id="logoutBtn" class="btn ghost hidden">Logout</button>
+      </div>
+    </header>
+
+    <main class="shell">
+      <!-- LOGIN -->
+      <section id="loginCard" class="card">
+        <h2>Login</h2>
+        <p class="muted">Bestaat username niet, dan wordt die aangemaakt.</p>
+        <div class="grid2">
+          <div class="field">
+            <label>Username</label>
+            <input id="loginUser" autocomplete="username" />
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input id="loginPass" type="password" autocomplete="current-password" />
+          </div>
+        </div>
+        <div class="row">
+          <button id="loginBtn" class="btn primary">Login</button>
+          <div id="loginErr" class="err"></div>
+        </div>
+      </section>
+
+      <!-- APP -->
+      <section id="appCard" class="card hidden">
+        <div class="weekbar">
+          <button id="prevWeek" class="btn ghost">← Vorige</button>
+          <div id="weekLabel" class="pill"></div>
+          <button id="nextWeek" class="btn ghost">Volgende →</button>
+          <button id="today" class="btn primary">Vandaag</button>
+        </div>
+
+        <div class="layout">
+          <div class="card inner">
+            <h2>Invoer</h2>
+            <div class="grid2">
+              <div class="field">
+                <label>Dag</label>
+                <select id="daySelect"></select>
+              </div>
+              <div class="field">
+                <label>Vak</label>
+                <select id="subjectSelect"></select>
+              </div>
+            </div>
+
+            <div class="grid2">
+              <div class="field">
+                <label>Type</label>
+                <select id="typeSelect">
+                  <option value="taak">taak</option>
+                  <option value="study">study</option>
+                  <option value="lecture">lecture</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Uren</label>
+                <input id="hoursInput" type="number" min="0" step="0.25" placeholder="bv. 1.5" />
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Notitie</label>
+              <textarea id="noteInput" placeholder="optioneel"></textarea>
+            </div>
+
+            <div class="row">
+              <button id="addEntry" class="btn primary">Toevoegen</button>
+              <button id="clearWeek" class="btn danger">Week leegmaken</button>
+            </div>
+
+            <div class="hr"></div>
+
+            <h2>Vakken</h2>
+            <div class="row">
+                <div class="field grow">
+                    <label>Nieuw vak</label>
+                    <input id="newSubject" placeholder="bv. Wiskunde" />
+                </div>
+                <div class="field">
+                    <label>&nbsp;</label>
+                    <button id="addSubject" class="btn primary full">Toevoegen</button>
+                </div>
+            </div>
+            <div id="subjectList" class="list"></div>
+
+            <div class="kpis">
+              <div class="kpi">
+                <div class="muted">Week totaal</div>
+                <div id="weekTotal" class="kpiVal">0</div>
+              </div>
+              <div class="kpi">
+                <div class="muted">Dagtotaal</div>
+                <div id="dayTotal" class="kpiVal">0</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card inner">
+            <h2>Week</h2>
+            <div id="days" class="days"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
