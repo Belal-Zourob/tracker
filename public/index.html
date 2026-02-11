@@ -118,9 +118,56 @@
             </div>
           </div>
 
-          <div class="card inner">
-            <h2 id="weekTitle">Week</h2>
-            <div id="days" class="days"></div>
+          <div class="weekCol">
+            <div class="card inner">
+              <h2 id="weekTitle">Week</h2>
+              <div id="days" class="days"></div>
+            </div>
+
+            <div class="card inner">
+              <section class="liveSession">
+                <h3 id="liveTitle">Live sessie</h3>
+                <p id="liveHint" class="muted">Kiest de dag die hierboven geselecteerd is.</p>
+
+                <div class="grid2">
+                  <div class="field">
+                    <label id="liveSubjectLabel">Vak</label>
+                    <select id="liveSubjectSelect"></select>
+                  </div>
+                  <div class="field">
+                    <label id="liveTypeLabel">Type</label>
+                    <select id="liveTypeSelect">
+                      <option value="taak">taak</option>
+                      <option value="study">study</option>
+                      <option value="lecture">lecture</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="grid2">
+                  <div class="field">
+                    <label id="liveModeLabel">Modus</label>
+                    <select id="liveModeSelect">
+                      <option value="stopwatch">Stopwatch</option>
+                      <option value="timer">Timer</option>
+                    </select>
+                  </div>
+                  <div id="liveDurationField" class="field">
+                    <label id="liveDurationLabel">Timer (min)</label>
+                    <input id="liveMinutesInput" type="number" min="1" step="1" value="25" />
+                  </div>
+                </div>
+
+                <div id="liveClock" class="liveClock">00:00:00</div>
+                <div id="liveStatus" class="muted"></div>
+
+                <div class="row">
+                  <button id="liveStartBtn" class="btn primary">Start</button>
+                  <button id="livePauseBtn" class="btn ghost" disabled>Pauze</button>
+                  <button id="liveStopBtn" class="btn danger" disabled>Stop &amp; opslaan</button>
+                </div>
+              </section>
+            </div>
           </div>
         </div>
       </section>

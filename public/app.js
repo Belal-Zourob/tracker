@@ -49,6 +49,22 @@ const newSubjectLabelEl = document.getElementById("newSubjectLabel");
 const weekTotalLabelEl = document.getElementById("weekTotalLabel");
 const dayTotalLabelEl = document.getElementById("dayTotalLabel");
 const weekTitleEl = document.getElementById("weekTitle");
+const liveTitleEl = document.getElementById("liveTitle");
+const liveHintEl = document.getElementById("liveHint");
+const liveSubjectLabelEl = document.getElementById("liveSubjectLabel");
+const liveTypeLabelEl = document.getElementById("liveTypeLabel");
+const liveModeLabelEl = document.getElementById("liveModeLabel");
+const liveDurationLabelEl = document.getElementById("liveDurationLabel");
+const liveSubjectSelect = document.getElementById("liveSubjectSelect");
+const liveTypeSelect = document.getElementById("liveTypeSelect");
+const liveModeSelect = document.getElementById("liveModeSelect");
+const liveMinutesInput = document.getElementById("liveMinutesInput");
+const liveDurationField = document.getElementById("liveDurationField");
+const liveClockEl = document.getElementById("liveClock");
+const liveStatusEl = document.getElementById("liveStatus");
+const liveStartBtn = document.getElementById("liveStartBtn");
+const livePauseBtn = document.getElementById("livePauseBtn");
+const liveStopBtn = document.getElementById("liveStopBtn");
 
 // ---- Date helpers (ISO week monday start) ----
 const pad2 = (n) => String(n).padStart(2, "0");
@@ -126,6 +142,26 @@ const I18N = {
     editDay: "Bewerk dag",
     closeDay: "Sluit dag",
     deleteRecord: "Verwijder record",
+    liveTitle: "Live sessie",
+    liveHint: "Gebruikt de dag die hierboven geselecteerd is.",
+    liveSubject: "Vak",
+    liveType: "Type",
+    liveMode: "Modus",
+    liveDuration: "Timer (min)",
+    liveModeStopwatch: "Stopwatch",
+    liveModeTimer: "Timer",
+    liveStart: "Start",
+    livePause: "Pauze",
+    liveResume: "Hervat",
+    liveStopSave: "Stop & opslaan",
+    liveStatusIdle: "Klaar om te starten",
+    liveStatusRunningStopwatch: "Stopwatch loopt...",
+    liveStatusRunningTimer: "Timer loopt...",
+    liveStatusPaused: "Gepauzeerd",
+    liveStatusSaved: "Sessie opgeslagen: {hours} {unit}",
+    liveStatusTooShort: "Sessie te kort om op te slaan",
+    liveStatusSaveError: "Kon sessie niet opslaan",
+    liveStatusNeedDuration: "Vul een geldige timerduur in",
     unitShort: "u",
     unitLong: "uur",
     dayShort: ["ma", "di", "wo", "do", "vr", "za", "zo"],
@@ -170,6 +206,26 @@ const I18N = {
     editDay: "Edit day",
     closeDay: "Close day",
     deleteRecord: "Delete record",
+    liveTitle: "Live session",
+    liveHint: "Uses the day selected above.",
+    liveSubject: "Subject",
+    liveType: "Type",
+    liveMode: "Mode",
+    liveDuration: "Timer (min)",
+    liveModeStopwatch: "Stopwatch",
+    liveModeTimer: "Timer",
+    liveStart: "Start",
+    livePause: "Pause",
+    liveResume: "Resume",
+    liveStopSave: "Stop & save",
+    liveStatusIdle: "Ready to start",
+    liveStatusRunningStopwatch: "Stopwatch running...",
+    liveStatusRunningTimer: "Timer running...",
+    liveStatusPaused: "Paused",
+    liveStatusSaved: "Session saved: {hours} {unit}",
+    liveStatusTooShort: "Session is too short to save",
+    liveStatusSaveError: "Could not save session",
+    liveStatusNeedDuration: "Enter a valid timer duration",
     unitShort: "h",
     unitLong: "hours",
     dayShort: ["mo", "tu", "we", "th", "fr", "sa", "su"],
@@ -190,14 +246,163 @@ let expandedDayISO = null;
 let prevExpandedDayISO = null;
 const LANG_KEY = "tracker_lang";
 let currentLang = (localStorage.getItem(LANG_KEY) || "nl").toLowerCase() === "en" ? "en" : "nl";
-const managedSelects = [daySelect, subjectSelect, typeSelect];
+const managedSelects = [daySelect, subjectSelect, typeSelect, liveSubjectSelect, liveTypeSelect, liveModeSelect];
+
+const LIVE_MODE_STOPWATCH = "stopwatch";
+const LIVE_MODE_TIMER = "timer";
+const liveSession = {
+  mode: LIVE_MODE_STOPWATCH,
+  running: false,
+  startedAt: 0,
+  elapsedBeforePauseMs: 0,
+  timerTotalMs: 0,
+  tickId: null,
+  saving: false,
+  statusKey: "liveStatusIdle",
+  statusMeta: {},
+};
 
 function t(key) {
   return I18N[currentLang][key];
 }
 
+function tf(key, vars = {}) {
+  let out = String(t(key) || "");
+  for (const [k, v] of Object.entries(vars)) {
+    out = out.split(`{${k}}`).join(String(v));
+  }
+  return out;
+}
+
 function getTypeLabel(type) {
   return t("typeLabels")[type] || type;
+}
+
+function setLiveStatus(key, meta = {}) {
+  liveSession.statusKey = key;
+  liveSession.statusMeta = meta;
+  liveStatusEl.textContent = tf(key, meta);
+}
+
+function getLiveElapsedMs() {
+  if (!liveSession.running) return liveSession.elapsedBeforePauseMs;
+  return liveSession.elapsedBeforePauseMs + (Date.now() - liveSession.startedAt);
+}
+
+function formatClock(ms) {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const hh = Math.floor(totalSec / 3600);
+  const mm = Math.floor((totalSec % 3600) / 60);
+  const ss = totalSec % 60;
+  return `${pad2(hh)}:${pad2(mm)}:${pad2(ss)}`;
+}
+
+function stopLiveTicker() {
+  if (liveSession.tickId) {
+    clearInterval(liveSession.tickId);
+    liveSession.tickId = null;
+  }
+}
+
+async function completeLiveSession(auto = false) {
+  if (liveSession.saving) return;
+  liveSession.saving = true;
+  stopLiveTicker();
+
+  const elapsedMsRaw = getLiveElapsedMs();
+  const elapsedMs = liveSession.mode === LIVE_MODE_TIMER
+    ? Math.min(elapsedMsRaw, liveSession.timerTotalMs)
+    : elapsedMsRaw;
+
+  liveSession.running = false;
+  liveSession.startedAt = 0;
+  liveSession.elapsedBeforePauseMs = elapsedMs;
+
+  if (elapsedMs < 1000) {
+    liveSession.elapsedBeforePauseMs = 0;
+    liveSession.timerTotalMs = 0;
+    setLiveStatus("liveStatusTooShort");
+    updateLiveSessionUI();
+    liveSession.saving = false;
+    return;
+  }
+
+  const hours = Math.round((elapsedMs / 3600000) * 100) / 100;
+  try {
+    await api("/api/entries", {
+      method: "POST",
+      body: JSON.stringify({
+        day: daySelect.value,
+        subject: liveSubjectSelect.value,
+        type: liveTypeSelect.value,
+        hours,
+        note: null,
+      }),
+    });
+
+    setLiveStatus("liveStatusSaved", { hours, unit: t("unitShort") });
+    liveSession.elapsedBeforePauseMs = 0;
+    liveSession.timerTotalMs = 0;
+    await loadWeek();
+    renderAll();
+  } catch (e) {
+    setLiveStatus("liveStatusSaveError");
+    if (!auto) updateLiveSessionUI();
+  } finally {
+    liveSession.saving = false;
+  }
+}
+
+function startLiveTicker() {
+  stopLiveTicker();
+  liveSession.tickId = setInterval(() => {
+    const elapsed = getLiveElapsedMs();
+    if (liveSession.mode === LIVE_MODE_TIMER) {
+      const remaining = Math.max(0, liveSession.timerTotalMs - elapsed);
+      liveClockEl.textContent = formatClock(remaining);
+      if (remaining <= 0) {
+        completeLiveSession(true);
+      }
+      return;
+    }
+    liveClockEl.textContent = formatClock(elapsed);
+  }, 250);
+}
+
+function updateLiveModeField() {
+  const timerMode = liveModeSelect.value === LIVE_MODE_TIMER;
+  liveDurationField.classList.toggle("hidden", !timerMode);
+}
+
+function updateLiveSessionUI() {
+  const started = liveSession.running || liveSession.elapsedBeforePauseMs > 0;
+  const paused = !liveSession.running && liveSession.elapsedBeforePauseMs > 0;
+
+  let displayMs = getLiveElapsedMs();
+  if (liveSession.mode === LIVE_MODE_TIMER) {
+    displayMs = Math.max(0, liveSession.timerTotalMs - displayMs);
+  }
+  liveClockEl.textContent = formatClock(displayMs);
+
+  liveStartBtn.disabled = started || liveSession.saving;
+  livePauseBtn.disabled = !started || liveSession.saving;
+  liveStopBtn.disabled = !started || liveSession.saving;
+  liveSubjectSelect.disabled = started || liveSession.saving;
+  liveTypeSelect.disabled = started || liveSession.saving;
+  liveModeSelect.disabled = started || liveSession.saving;
+  liveMinutesInput.disabled = liveSession.saving || started || liveModeSelect.value !== LIVE_MODE_TIMER;
+
+  livePauseBtn.textContent = paused ? t("liveResume") : t("livePause");
+  liveStopBtn.textContent = t("liveStopSave");
+  liveStatusEl.textContent = tf(liveSession.statusKey, liveSession.statusMeta);
+
+  if (!started && liveSession.statusKey === "liveStatusIdle") {
+    setLiveStatus("liveStatusIdle");
+  } else if (liveSession.running) {
+    setLiveStatus(liveSession.mode === LIVE_MODE_TIMER ? "liveStatusRunningTimer" : "liveStatusRunningStopwatch");
+  } else if (paused) {
+    setLiveStatus("liveStatusPaused");
+  }
 }
 
 function applyStaticTexts() {
@@ -234,9 +439,24 @@ function applyStaticTexts() {
   weekTotalLabelEl.textContent = t("weekTotal");
   dayTotalLabelEl.textContent = t("dayTotal");
   weekTitleEl.textContent = t("weekTitle");
+  liveTitleEl.textContent = t("liveTitle");
+  liveHintEl.textContent = t("liveHint");
+  liveSubjectLabelEl.textContent = t("liveSubject");
+  liveTypeLabelEl.textContent = t("liveType");
+  liveModeLabelEl.textContent = t("liveMode");
+  liveDurationLabelEl.textContent = t("liveDuration");
+  liveStartBtn.textContent = t("liveStart");
+  livePauseBtn.textContent = t("livePause");
+  liveStopBtn.textContent = t("liveStopSave");
 
   Array.from(typeSelect.options).forEach((opt) => {
     opt.textContent = getTypeLabel(opt.value);
+  });
+  Array.from(liveTypeSelect.options).forEach((opt) => {
+    opt.textContent = getTypeLabel(opt.value);
+  });
+  Array.from(liveModeSelect.options).forEach((opt) => {
+    opt.textContent = opt.value === LIVE_MODE_TIMER ? t("liveModeTimer") : t("liveModeStopwatch");
   });
 
   const nlActive = currentLang === "nl";
@@ -244,6 +464,9 @@ function applyStaticTexts() {
   langEnBtn.classList.toggle("active", !nlActive);
   langNlBtn.setAttribute("aria-pressed", String(nlActive));
   langEnBtn.setAttribute("aria-pressed", String(!nlActive));
+
+  updateLiveModeField();
+  updateLiveSessionUI();
 }
 
 function setLanguage(lang, rerender = true) {
@@ -413,6 +636,14 @@ function sumHours(list) {
 function renderAuthUI(authed, username) {
   if (!authed) {
     closeCustomSelects();
+    stopLiveTicker();
+    liveSession.running = false;
+    liveSession.startedAt = 0;
+    liveSession.elapsedBeforePauseMs = 0;
+    liveSession.timerTotalMs = 0;
+    liveSession.saving = false;
+    setLiveStatus("liveStatusIdle");
+    updateLiveSessionUI();
     loginCard.classList.remove("hidden");
     appCard.classList.add("hidden");
     meEl.classList.add("hidden");
@@ -456,6 +687,28 @@ function renderSubjects() {
     row.appendChild(left);
     row.appendChild(del);
     subjectList.appendChild(row);
+  }
+}
+
+function renderLiveSessionSelectors() {
+  const prevSubject = liveSubjectSelect.value;
+  liveSubjectSelect.innerHTML = "";
+  for (const s of subjects) {
+    const opt = document.createElement("option");
+    opt.value = s;
+    opt.textContent = s;
+    liveSubjectSelect.appendChild(opt);
+  }
+  if (Array.from(liveSubjectSelect.options).some((opt) => opt.value === prevSubject)) {
+    liveSubjectSelect.value = prevSubject;
+  }
+
+  const validLiveType = ["taak", "study", "lecture"];
+  if (!validLiveType.includes(liveTypeSelect.value)) {
+    liveTypeSelect.value = "taak";
+  }
+  if (![LIVE_MODE_STOPWATCH, LIVE_MODE_TIMER].includes(liveModeSelect.value)) {
+    liveModeSelect.value = LIVE_MODE_STOPWATCH;
   }
 }
 
@@ -631,10 +884,13 @@ function renderTotals() {
 
 function renderAll() {
   renderSubjects();
+  renderLiveSessionSelectors();
   renderDaySelect();
   renderCustomSelects();
   renderWeek();
   renderTotals();
+  updateLiveModeField();
+  updateLiveSessionUI();
 }
 
 // ---- Loaders ----
@@ -656,6 +912,62 @@ async function loadWeek() {
 }
 
 // ---- Handlers ----
+liveModeSelect.onchange = () => {
+  updateLiveModeField();
+  updateLiveSessionUI();
+};
+
+liveStartBtn.onclick = () => {
+  if (liveSession.running || liveSession.elapsedBeforePauseMs > 0) return;
+
+  liveSession.mode = liveModeSelect.value === LIVE_MODE_TIMER ? LIVE_MODE_TIMER : LIVE_MODE_STOPWATCH;
+  liveSession.elapsedBeforePauseMs = 0;
+  liveSession.startedAt = Date.now();
+  liveSession.running = true;
+
+  if (liveSession.mode === LIVE_MODE_TIMER) {
+    const minutes = Number(liveMinutesInput.value);
+    if (!Number.isFinite(minutes) || minutes <= 0) {
+      liveSession.running = false;
+      liveSession.startedAt = 0;
+      setLiveStatus("liveStatusNeedDuration");
+      updateLiveSessionUI();
+      return;
+    }
+    liveSession.timerTotalMs = Math.round(minutes * 60 * 1000);
+  } else {
+    liveSession.timerTotalMs = 0;
+  }
+
+  startLiveTicker();
+  updateLiveSessionUI();
+};
+
+livePauseBtn.onclick = () => {
+  const started = liveSession.running || liveSession.elapsedBeforePauseMs > 0;
+  if (!started) return;
+
+  if (liveSession.running) {
+    liveSession.elapsedBeforePauseMs = getLiveElapsedMs();
+    liveSession.running = false;
+    liveSession.startedAt = 0;
+    stopLiveTicker();
+  } else {
+    liveSession.startedAt = Date.now();
+    liveSession.running = true;
+    startLiveTicker();
+  }
+
+  updateLiveSessionUI();
+};
+
+liveStopBtn.onclick = async () => {
+  const started = liveSession.running || liveSession.elapsedBeforePauseMs > 0;
+  if (!started) return;
+  await completeLiveSession(false);
+  updateLiveSessionUI();
+};
+
 langNlBtn.onclick = () => setLanguage("nl");
 langEnBtn.onclick = () => setLanguage("en");
 
