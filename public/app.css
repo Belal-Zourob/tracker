@@ -52,6 +52,66 @@ body.auth-view #loginCard{
   padding:22px;
 }
 
+body.auth-view #loginCard .grid2{
+  grid-template-columns:1fr;
+}
+
+body.auth-view #loginTitle{
+  text-align:center;
+}
+
+body.auth-view #loginHint{
+  text-align:center;
+}
+
+.forgotBtn{
+  border:none;
+  background:transparent;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+  padding:4px 0;
+  position:relative;
+}
+
+.forgotBtn:hover,
+.forgotBtn:focus-visible{
+  color:var(--text);
+}
+
+.forgotBtn:focus-visible{
+  outline:none;
+}
+
+.forgotBtn::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:calc(100% + 6px);
+  transform:translateX(-50%) translateY(-4px);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .15s ease, transform .15s ease;
+  background: rgba(10,14,24,.96);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:5px 8px;
+  color:var(--text);
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.2px;
+  white-space:nowrap;
+}
+
+.forgotBtn:hover::after,
+.forgotBtn:focus-visible::after,
+.forgotBtn[data-show="1"]::after{
+  content:"lol";
+  opacity:1;
+  transform:translateX(-50%) translateY(0);
+}
+
 @media (max-width:720px){
   body.auth-view #loginCard{
     aspect-ratio:auto;

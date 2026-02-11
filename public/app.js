@@ -6,6 +6,7 @@ const loginUser = document.getElementById("loginUser");
 const loginPass = document.getElementById("loginPass");
 const loginBtn = document.getElementById("loginBtn");
 const loginErr = document.getElementById("loginErr");
+const forgotPassBtn = document.getElementById("forgotPassBtn");
 
 const meEl = document.getElementById("me");
 const logoutBtn = document.getElementById("logoutBtn");
@@ -115,6 +116,7 @@ const I18N = {
     username: "Username",
     password: "Password",
     login: "Login",
+    forgotPassword: "Forgot password?",
     logout: "Logout",
     prevWeek: "← Vorige",
     nextWeek: "Volgende →",
@@ -183,6 +185,7 @@ const I18N = {
     username: "Username",
     password: "Password",
     login: "Login",
+    forgotPassword: "Forgot password?",
     logout: "Logout",
     prevWeek: "← Previous",
     nextWeek: "Next →",
@@ -534,6 +537,7 @@ function applyStaticTexts() {
   loginUserLabelEl.textContent = t("username");
   loginPassLabelEl.textContent = t("password");
   loginBtn.textContent = t("login");
+  forgotPassBtn.textContent = t("forgotPassword");
   logoutBtn.textContent = t("logout");
 
   prevWeekBtn.textContent = t("prevWeek");
@@ -1037,6 +1041,13 @@ async function loadWeek() {
 liveModeSelect.onchange = () => {
   updateLiveModeField();
   updateLiveSessionUI();
+};
+
+forgotPassBtn.onclick = () => {
+  forgotPassBtn.dataset.show = "1";
+  setTimeout(() => {
+    delete forgotPassBtn.dataset.show;
+  }, 1400);
 };
 
 liveStartBtn.onclick = async () => {
