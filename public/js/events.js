@@ -92,6 +92,12 @@ liveStopBtn.onclick = async () => {
 
 langNlBtn.onclick = () => setLanguage("nl");
 langEnBtn.onclick = () => setLanguage("en");
+daysNavPrevBtn.onclick = () => {
+  shiftDayWindow(-1);
+};
+daysNavNextBtn.onclick = () => {
+  shiftDayWindow(1);
+};
 
 async function doLogin() {
   if (loginCard.classList.contains("hidden")) return;
@@ -132,16 +138,19 @@ logoutBtn.onclick = async () => {
 
 prevWeekBtn.onclick = async () => {
   currentWeekStart = addDays(currentWeekStart, -7);
+  dayWindowStart = 0;
   await loadWeek();
   renderAll();
 };
 nextWeekBtn.onclick = async () => {
   currentWeekStart = addDays(currentWeekStart, 7);
+  dayWindowStart = 0;
   await loadWeek();
   renderAll();
 };
 todayBtn.onclick = async () => {
   currentWeekStart = startOfISOWeek(new Date());
+  dayWindowStart = 0;
   await loadWeek();
   renderAll();
   const todayISO = toISODate(new Date());
@@ -154,6 +163,55 @@ daySelect.onchange = () => {
   renderTotals();
   renderWeek();
 };
+
+let daySwipeStartX = 0;
+let daySwipeStartY = 0;
+let daySwipeTracking = false;
+
+daysEl.addEventListener(
+  "touchstart",
+  (ev) => {
+    if (ev.touches.length !== 1) {
+      daySwipeTracking = false;
+      return;
+    }
+    daySwipeStartX = ev.touches[0].clientX;
+    daySwipeStartY = ev.touches[0].clientY;
+    daySwipeTracking = true;
+  },
+  { passive: true }
+);
+
+daysEl.addEventListener(
+  "touchend",
+  (ev) => {
+    if (!daySwipeTracking || ev.changedTouches.length !== 1) return;
+    daySwipeTracking = false;
+
+    const touch = ev.changedTouches[0];
+    const dx = touch.clientX - daySwipeStartX;
+    const dy = touch.clientY - daySwipeStartY;
+
+    if (Math.abs(dx) < DAY_SWIPE_THRESHOLD_PX) return;
+    if (Math.abs(dx) <= Math.abs(dy)) return;
+
+    if (dx < 0) {
+      shiftDayWindow(1);
+      return;
+    }
+
+    shiftDayWindow(-1);
+  },
+  { passive: true }
+);
+
+daysEl.addEventListener(
+  "touchcancel",
+  () => {
+    daySwipeTracking = false;
+  },
+  { passive: true }
+);
 
 addSubjectBtn.onclick = async () => {
   const name = String(newSubject.value || "").trim();

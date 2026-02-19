@@ -35,6 +35,11 @@ function applyStaticTexts() {
   weekTotalLabelEl.textContent = t("weekTotal");
   dayTotalLabelEl.textContent = t("dayTotal");
   weekTitleEl.textContent = t("weekTitle");
+  daysNavPrevBtn.title = t("daysNavPrev");
+  daysNavPrevBtn.setAttribute("aria-label", t("daysNavPrev"));
+  daysNavNextBtn.title = t("daysNavNext");
+  daysNavNextBtn.setAttribute("aria-label", t("daysNavNext"));
+  daysSwipeHintEl.textContent = t("daysSwipeHint");
   liveTitleEl.textContent = t("liveTitle");
   liveHintEl.textContent = t("liveHint");
   liveSubjectLabelEl.textContent = t("liveSubject");
@@ -96,6 +101,40 @@ function entriesByDay() {
 }
 function sumHours(list) {
   return list.reduce((a, e) => a + (Number(e.hours) || 0), 0);
+}
+
+function clampDayWindowStart(value, totalDays = 7) {
+  const maxStart = Math.max(0, totalDays - DAY_WINDOW_SIZE);
+  return Math.min(Math.max(value, 0), maxStart);
+}
+
+function ensureDayVisible(iso, dates) {
+  if (!iso) return;
+  const idx = dates.findIndex((d) => toISODate(d) === iso);
+  if (idx < 0) return;
+
+  if (idx < dayWindowStart) {
+    dayWindowStart = idx;
+  } else if (idx >= dayWindowStart + DAY_WINDOW_SIZE) {
+    dayWindowStart = idx - DAY_WINDOW_SIZE + 1;
+  }
+
+  dayWindowStart = clampDayWindowStart(dayWindowStart, dates.length);
+}
+
+function renderDayWindowNav(totalDays) {
+  const maxStart = Math.max(0, totalDays - DAY_WINDOW_SIZE);
+  daysNavPrevBtn.disabled = dayWindowStart <= 0;
+  daysNavNextBtn.disabled = dayWindowStart >= maxStart;
+}
+
+function shiftDayWindow(delta) {
+  const dates = getWeekDates(currentWeekStart);
+  const next = clampDayWindowStart(dayWindowStart + delta, dates.length);
+  if (next === dayWindowStart) return false;
+  dayWindowStart = next;
+  renderWeek();
+  return true;
 }
 
 // ---- Render ----
@@ -218,11 +257,23 @@ function renderWeek() {
   const dates = getWeekDates(currentWeekStart);
   const weekISO = dates.map((d) => toISODate(d));
   if (expandedDayISO && !weekISO.includes(expandedDayISO)) expandedDayISO = null;
-  daysEl.classList.toggle("hasExpanded", !!expandedDayISO);
   const selectedISO = daySelect.value;
+  ensureDayVisible(expandedDayISO || selectedISO, dates);
+  dayWindowStart = clampDayWindowStart(dayWindowStart, dates.length);
+
+  const startIdx = dayWindowStart;
+  const endIdx = Math.min(startIdx + DAY_WINDOW_SIZE, dates.length);
+  const visibleISO = new Set(dates.slice(startIdx, endIdx).map((d) => toISODate(d)));
+
+  if (expandedDayISO && !visibleISO.has(expandedDayISO)) {
+    expandedDayISO = null;
+  }
+
+  daysEl.classList.toggle("hasExpanded", !!expandedDayISO);
+  renderDayWindowNav(dates.length);
   const dayNames = t("dayNames");
 
-  for (let i = 0; i < 7; i++) {
+  for (let i = startIdx; i < endIdx; i++) {
     const d = dates[i];
     const iso = toISODate(d);
     const expanded = expandedDayISO === iso;

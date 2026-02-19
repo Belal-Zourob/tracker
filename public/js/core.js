@@ -31,6 +31,9 @@ const addSubjectBtn = document.getElementById("addSubject");
 const subjectList = document.getElementById("subjectList");
 
 const daysEl = document.getElementById("days");
+const daysNavPrevBtn = document.getElementById("daysNavPrev");
+const daysNavNextBtn = document.getElementById("daysNavNext");
+const daysSwipeHintEl = document.getElementById("daysSwipeHint");
 const weekTotalEl = document.getElementById("weekTotal");
 const dayTotalEl = document.getElementById("dayTotal");
 
@@ -139,6 +142,9 @@ const I18N = {
     weekTotal: "Week totaal",
     dayTotal: "Dagtotaal",
     weekTitle: "Week",
+    daysNavPrev: "Vorige dagen",
+    daysNavNext: "Volgende dagen",
+    daysSwipeHint: "Swipe links/rechts of gebruik de pijltjes",
     choose: "Kies...",
     noEntries: "Geen entries",
     deleteSubject: "Verwijder",
@@ -209,6 +215,9 @@ const I18N = {
     weekTotal: "Week total",
     dayTotal: "Day total",
     weekTitle: "Week",
+    daysNavPrev: "Previous days",
+    daysNavNext: "Next days",
+    daysSwipeHint: "Swipe left/right or use the arrows",
     choose: "Choose...",
     noEntries: "No entries",
     deleteSubject: "Delete",
@@ -257,9 +266,12 @@ let subjects = [];
 let weekEntries = []; // entries in current week
 let expandedDayISO = null;
 let prevExpandedDayISO = null;
+let dayWindowStart = 0;
 const LANG_KEY = "tracker_lang";
 let currentLang = (localStorage.getItem(LANG_KEY) || "nl").toLowerCase() === "en" ? "en" : "nl";
 const managedSelects = [daySelect, subjectSelect, typeSelect, liveSubjectSelect, liveTypeSelect, liveModeSelect];
+const DAY_WINDOW_SIZE = 5;
+const DAY_SWIPE_THRESHOLD_PX = 48;
 
 const LIVE_MODE_STOPWATCH = "stopwatch";
 const LIVE_MODE_TIMER = "timer";

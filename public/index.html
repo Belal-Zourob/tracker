@@ -123,7 +123,18 @@
 
           <div class="weekCol">
             <div class="card inner">
-              <h2 id="weekTitle">Week</h2>
+              <div class="daysHeader">
+                <h2 id="weekTitle">Week</h2>
+                <div class="daysNav" role="group" aria-label="Day navigation">
+                  <button id="daysNavPrev" type="button" class="btn ghost iconBtn daysNavBtn" aria-label="Previous days">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+                  </button>
+                  <button id="daysNavNext" type="button" class="btn ghost iconBtn daysNavBtn" aria-label="Next days">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+                  </button>
+                </div>
+              </div>
+              <p id="daysSwipeHint" class="muted daysSwipeHint">Swipe links/rechts om te navigeren</p>
               <div id="days" class="days"></div>
             </div>
 
